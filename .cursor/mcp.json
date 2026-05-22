@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "db-safety-mcp": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  }
+}

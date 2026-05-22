@@ -1,0 +1,20 @@
+{
+  "name": "db-safety-mcp",
+  "version": "1.0.0",
+  "description": "MySQL 表结构与 EXPLAIN 安全 MCP Server，供 Cursor Agent 调用",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "preinstall": "npx only-allow pnpm"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "dotenv": "^16.4.7",
+    "mysql2": "^3.14.0",
+    "zod": "^3.25.0"
+  }
+}

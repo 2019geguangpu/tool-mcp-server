@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+---
+
+Cursor Action Rules:
+
+Check Before Code Gen: 在生成代码前，预估代码文件是否会突破 350 行。
+
+Auto-Refactor: 
+  根据领域去做文件命名以及内容拆分
+
+No "Comment-Padding": 禁止通过删减注释来规避 350 行约束。若无法拆分，必须在文件头部注释注明：// [ARCH_EXEMPTION]: Reason why this file exceeds 350 lines。
