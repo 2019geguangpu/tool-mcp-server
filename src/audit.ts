@@ -3,7 +3,17 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
-import type { AuditRecord, ToolCallResult, ToolResultSummary } from "./types.js";
+import type {
+  AuditRecord,
+  ToolCallResult,
+  ToolContent,
+  ToolResultSummary,
+} from "./types.js";
+
+/** read_feishu_doc 审计详情中正文最多保留字符数（含图片元信息，不含 base64） */
+const FEISHU_READ_AUDIT_TEXT_MAX = 100;
+
+const AUDIT_TRUNCATE_RESULT_TOOLS = new Set(["read_feishu_doc"]);
 
 let auditDirReady = false;
 
@@ -16,20 +26,65 @@ async function ensureAuditDir(): Promise<void> {
   auditDirReady = true;
 }
 
-function summarizeResult(result: ToolCallResult): ToolResultSummary {
+function summarizeResult(
+  result: ToolCallResult,
+  toolName: string
+): ToolResultSummary {
   if (!result.content.length) {
     return { contentCount: 0, isError: false, preview: "", textLength: 0 };
   }
   const text = result.content
-    .filter((c) => c.type === "text")
+    .filter((c): c is { type: "text"; text: string } => c.type === "text")
     .map((c) => c.text)
     .join("\n");
-  const preview = text.length > 500 ? `${text.slice(0, 500)}…` : text;
+  const imageCount = result.content.filter((c) => c.type === "image").length;
+  const previewLimit = toolName === "read_feishu_doc" ? FEISHU_READ_AUDIT_TEXT_MAX : 500;
+  const previewBase =
+    text.length > previewLimit ? `${text.slice(0, previewLimit)}…` : text;
+  const preview =
+    imageCount > 0
+      ? `${previewBase}${previewBase ? "\n" : ""}[${imageCount} 张图片，审计未存 base64]`
+      : previewBase;
   return {
     contentCount: result.content.length,
     isError: Boolean(result.isError),
     preview,
     textLength: text.length,
+  };
+}
+
+/** 飞书读文档工具：审计文件不存全文与图片二进制 */
+function sanitizeResultForAudit(
+  toolName: string,
+  result: ToolCallResult
+): ToolCallResult {
+  if (!AUDIT_TRUNCATE_RESULT_TOOLS.has(toolName)) {
+    return result;
+  }
+
+  const text = result.content
+    .filter((c): c is { type: "text"; text: string } => c.type === "text")
+    .map((c) => c.text)
+    .join("\n");
+  const imageCount = result.content.filter((c) => c.type === "image").length;
+
+  const truncated =
+    text.length > FEISHU_READ_AUDIT_TEXT_MAX
+      ? `${text.slice(0, FEISHU_READ_AUDIT_TEXT_MAX)}…`
+      : text;
+
+  const auditContent: ToolContent[] = [
+    {
+      type: "text",
+      text:
+        truncated +
+        (imageCount > 0 ? `\n（审计省略 ${imageCount} 张图片的 base64）` : ""),
+    },
+  ];
+
+  return {
+    isError: result.isError,
+    content: auditContent,
   };
 }
 
@@ -59,13 +114,13 @@ export async function recordToolCall(input: RecordToolCallInput): Promise<void> 
     startedAt: new Date(startedAt).toISOString(),
     durationMs,
     args,
-    summary: result ? summarizeResult(result) : null,
+    summary: result ? summarizeResult(result, toolName) : null,
     error: error
       ? error instanceof Error
         ? error.message
         : String(error)
       : null,
-    result: result ?? null,
+    result: result ? sanitizeResultForAudit(toolName, result) : null,
   };
 
   try {

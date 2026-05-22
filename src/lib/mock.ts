@@ -1,3 +1,6 @@
+import type { InsightsRow } from "./cloudwatch-insights.js";
+import type { FeishuSearchHit } from "./feishu-client.js";
+
 export function mockDdl(tableName: string): string {
   return `CREATE TABLE \`${tableName}\` (
   \`id\` bigint NOT NULL AUTO_INCREMENT,
@@ -11,7 +14,40 @@ export function mockListTables(): string[] {
   return ["users", "orders", "order_items", "products"];
 }
 
-import type { InsightsRow } from "./cloudwatch-insights.js";
+export function mockFeishuSearchHits(query: string): FeishuSearchHit[] {
+  return [
+    {
+      title: `【MOCK】笔记：${query}`,
+      summary: "这是 mock 摘要，用于本地验证 MCP 工具链。",
+      entityType: "DOC",
+      docType: "DOCX",
+      token: "mock_doc_token_001",
+      url: "https://example.feishu.cn/docx/mock_doc_token_001",
+      ownerName: "mock-user",
+    },
+    {
+      title: "【MOCK】上线检查清单",
+      summary: "发布前核对项…",
+      entityType: "DOC",
+      docType: "DOCX",
+      token: "mock_doc_token_002",
+      url: "https://example.feishu.cn/docx/mock_doc_token_002",
+    },
+  ];
+}
+
+export function mockFeishuDocContent(documentId: string): string {
+  return [
+    `# MOCK 飞书文档 (${documentId})`,
+    "",
+    "## 章节一",
+    "本地 MOCK_FEISHU_TOOLS=true 时不请求飞书 API。",
+    "",
+    "## 章节二",
+    "- 要点 A",
+    "- 要点 B",
+  ].join("\n");
+}
 
 export function mockInsightsRows(queryString: string): InsightsRow[] {
   return [

@@ -34,6 +34,14 @@ function parseLogGroups(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function parseCsv(raw: string | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   projectRoot,
   db: {
@@ -58,5 +66,17 @@ export const config = {
   audit: {
     enabled: envBool("AUDIT_TOOLS", true),
     dir: process.env.AUDIT_DIR || path.join(projectRoot, "logs", "calls"),
+  },
+  feishu: {
+    appId: process.env.FEISHU_APP_ID || "",
+    appSecret: process.env.FEISHU_APP_SECRET || "",
+    userAccessToken: process.env.FEISHU_USER_ACCESS_TOKEN || "",
+    notesFolderTokens: parseCsv(process.env.FEISHU_NOTES_FOLDER_TOKENS),
+    searchDocTypes: ["DOCX", "DOC"] as const,
+    searchPageSize: Number(process.env.FEISHU_SEARCH_PAGE_SIZE || 10),
+    maxDocChars: Number(process.env.FEISHU_MAX_DOC_CHARS || 48_000),
+    maxImagesPerDoc: Number(process.env.FEISHU_MAX_IMAGES || 30),
+    maxImageBytes: Number(process.env.FEISHU_MAX_IMAGE_BYTES || 5 * 1024 * 1024),
+    mockFeishuTools: envBool("MOCK_FEISHU_TOOLS", false),
   },
 } as const;

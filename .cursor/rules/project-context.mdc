@@ -6,7 +6,8 @@ alwaysApply: true
 
 MCP Server（TypeScript + tsup → `dist/` ESM）
  - `src/index.ts` 入口，`src/create-server.ts` 注册工具
- - `src/tools/` 每个工具独立文件（含 `list_live_tables`、`query_biz_core_logs`），经 `wrap-handler.ts` 统一打日志与审计
+ - `src/tools/` 每个工具独立文件（含飞书 `search_feishu_notes`、`read_feishu_doc`），经 `wrap-handler.ts` 统一打日志与审计
+ - 飞书笔记：粘贴链接 → 只 `read_feishu_doc`（`document_refs`）；禁止 search；超长 `offset_chars` 分页；表格截图会下载为 MCP image + `logs/feishu-media/`
  - `query_biz_core_logs` → CloudWatch Logs Insights（`@aws-sdk/client-cloudwatch-logs`，凭证同本机 aws cli）
  - `src/logger.ts` → stderr + `logs/mcp-*.log`
  - `src/audit.ts` → `logs/tool-calls.jsonl` + `logs/calls/*.json`

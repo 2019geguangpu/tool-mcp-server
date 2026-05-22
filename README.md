@@ -25,6 +25,8 @@ server.js               # 兼容入口（import dist/index.js）
 | `get_live_table_schema` | `SHOW CREATE TABLE`，获取真实 DDL |
 | `evaluate_sql_explain` | 仅允许 SELECT，输出 JSON 执行计划 |
 | `query_biz_core_logs` | CloudWatch Logs Insights 查 biz-core 线上日志 |
+| `search_feishu_notes` | 按关键词搜索飞书笔记（对话里未贴链接时使用） |
+| `read_feishu_doc` | 读取飞书链接正文与表格/文档图片（MCP image 块 + `logs/feishu-media/`）；去尾部空列；`offset_chars` 分页 |
 
 ## 开发与构建
 
@@ -105,11 +107,25 @@ node dist/view-logs.js --id <callId前缀>      # 按 callId 查详情
 
 ## 环境变量
 
-见 [`.env.example`](.env.example)：`DB_*`、`LOG_*`、`AUDIT_*`、`MOCK_DB_TOOLS`、`AWS_REGION`、`BIZ_CORE_LOG_*`、`MOCK_CLOUDWATCH_TOOLS`。
+见 [`.env.example`](.env.example)：`DB_*`、`LOG_*`、`AUDIT_*`、`MOCK_DB_TOOLS`、`AWS_REGION`、`BIZ_CORE_LOG_*`、`MOCK_CLOUDWATCH_TOOLS`、`FEISHU_*`、`MOCK_FEISHU_TOOLS`。
 
 `query_biz_core_logs` 使用与本机 `aws logs` 相同的凭证链（`aws sso login` / `AWS_PROFILE` 等），无需在 `.env` 里写 Access Key。默认查询截图中的 4 个 ECS 日志组、最近 3 小时；Agent 传入完整 Insights 查询语句。
 
 默认 `DB_PORT=3906`，对应本地 AWS CLI 数据库代理；直连 MySQL 时在 `.env` 中改为 `3306` 即可。
+
+### 飞书笔记
+
+1. 在 [飞书开放平台](https://open.feishu.cn/app) 创建**企业自建应用**，记录 App ID / App Secret。
+2. 开通权限：`search:docs:read`（搜索）、`docx:document:readonly`（读正文）。
+3. **搜索**：配置 `FEISHU_USER_ACCESS_TOKEN`（文档搜索 API 仅支持用户凭证，需 OAuth 或开发者工具获取）。
+4. **读正文**：在目标文档页面 **「…」→「添加文档应用」** 加入该应用；`read_feishu_doc` 使用 `tenant_access_token`。
+5. 可选 `FEISHU_NOTES_FOLDER_TOKENS` 将搜索限定在笔记文件夹内。
+6. 本地可先 `MOCK_FEISHU_TOOLS=true` 验证工具链，再关闭 mock 连真 API。
+
+Agent 工作流：
+
+- **用户在对话里粘贴飞书链接** → 只 `read_feishu_doc`（`document_refs` 填消息里的全部链接），不要 `search_feishu_notes`。
+- **未贴链接、要按关键词找笔记** → `search_feishu_notes` → 再 `read_feishu_doc`。
 
 ## 安全说明
 

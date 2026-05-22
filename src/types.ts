@@ -5,8 +5,16 @@ export type ToolTextContent = {
   text: string;
 };
 
+export type ToolImageContent = {
+  type: "image";
+  data: string;
+  mimeType: string;
+};
+
+export type ToolContent = ToolTextContent | ToolImageContent;
+
 export type ToolCallResult = {
-  content: ToolTextContent[];
+  content: ToolContent[];
   isError?: boolean;
 };
 
