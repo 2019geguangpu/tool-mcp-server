@@ -1,11 +1,18 @@
 {
   "name": "db-safety-mcp",
   "version": "1.0.0",
-  "description": "MySQL 表结构与 EXPLAIN 安全 MCP Server，供 Cursor Agent 调用",
+  "description": "Tool MCP Server，供 Cursor Agent 调用",
   "type": "module",
-  "main": "server.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node server.js",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "prestart": "pnpm run build",
+    "prepare": "pnpm run build",
+    "logs": "node dist/view-logs.js",
+    "logs:last": "node dist/view-logs.js --last",
     "preinstall": "npx only-allow pnpm"
   },
   "engines": {
@@ -16,5 +23,10 @@
     "dotenv": "^16.4.7",
     "mysql2": "^3.14.0",
     "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.0"
   }
 }
