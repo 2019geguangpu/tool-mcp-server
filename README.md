@@ -1,6 +1,6 @@
 # db-safety-mcp
 
-面向 Cursor Agent 的 MySQL 安全 MCP Server：拉取线上表 DDL、对 SELECT 做 `EXPLAIN FORMAT=JSON` 评估。
+面向 Cursor Agent 的 MySQL 安全 MCP Server：列举线上表、拉取表 DDL、对 SELECT 做 `EXPLAIN FORMAT=JSON` 评估。
 
 ## 项目结构
 
@@ -21,8 +21,10 @@ server.js               # 兼容入口（import dist/index.js）
 
 | 工具 | 说明 |
 |------|------|
+| `list_live_tables` | 查询 `information_schema`，列出库内全部表名 |
 | `get_live_table_schema` | `SHOW CREATE TABLE`，获取真实 DDL |
 | `evaluate_sql_explain` | 仅允许 SELECT，输出 JSON 执行计划 |
+| `query_biz_core_logs` | CloudWatch Logs Insights 查 biz-core 线上日志 |
 
 ## 开发与构建
 
@@ -75,7 +77,7 @@ node dist/view-logs.js --id <callId前缀>      # 按 callId 查详情
 1. 本仓库已包含 [`.cursor/mcp.json`](.cursor/mcp.json)，**必须用本项目根目录**打开（`File → Open Folder` → `tool-mcp-server`），不要只打开子文件夹。
 2. 执行 `pnpm install`（会 build 出 `dist/`）并配置好 `.env`。
 3. **完全退出并重新打开 Cursor**（或命令面板 `Developer: Reload Window`）。
-4. 打开 **Cursor Settings → Tools & MCP**，确认 `db-safety-mcp` 为绿色；展开服务器，确认两个工具开关为 **开启**。
+4. 打开 **Cursor Settings → Tools & MCP**，确认 `db-safety-mcp` 为绿色；展开服务器，确认各工具开关为 **开启**。
 5. 用 **Composer / Agent 模式**（`Cmd+I`），模式选 **Agent**。
 6. **新开一条 Agent 对话**，调用任一数据库工具后，在本机执行 `pnpm run logs` 应能看到记录。
 
@@ -103,11 +105,13 @@ node dist/view-logs.js --id <callId前缀>      # 按 callId 查详情
 
 ## 环境变量
 
-见 [`.env.example`](.env.example)：`DB_*`、`LOG_*`、`AUDIT_*`、`MOCK_DB_TOOLS`。
+见 [`.env.example`](.env.example)：`DB_*`、`LOG_*`、`AUDIT_*`、`MOCK_DB_TOOLS`、`AWS_REGION`、`BIZ_CORE_LOG_*`、`MOCK_CLOUDWATCH_TOOLS`。
+
+`query_biz_core_logs` 使用与本机 `aws logs` 相同的凭证链（`aws sso login` / `AWS_PROFILE` 等），无需在 `.env` 里写 Access Key。默认查询截图中的 4 个 ECS 日志组、最近 3 小时；Agent 传入完整 Insights 查询语句。
 
 默认 `DB_PORT=3906`，对应本地 AWS CLI 数据库代理；直连 MySQL 时在 `.env` 中改为 `3306` 即可。
 
 ## 安全说明
 
-- 表名经白名单校验，并使用参数化 `SHOW CREATE TABLE ??`。
+- 库名、表名经白名单校验；`list_live_tables` 使用参数化查询 `information_schema`；`get_live_table_schema` 使用参数化 `SHOW CREATE TABLE ??`。
 - `evaluate_sql_explain` 仅接受 SELECT（含 WITH … SELECT），避免通过 EXPLAIN 执行写操作。

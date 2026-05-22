@@ -19,6 +19,21 @@ function envBool(name: string, defaultValue: boolean): boolean {
 
 const logLevel = (process.env.LOG_LEVEL || "info").toLowerCase();
 
+const DEFAULT_BIZ_CORE_LOG_GROUPS = [
+  "/ecs/leap_server_prod_biz_core_service",
+  "/ecs/leap_server_prod_biz_core_service/logbus2",
+  "/ecs/leap_server_prod_biz_core_service/loongcollector",
+  "/ecs/biz_core_service",
+];
+
+function parseLogGroups(raw: string | undefined): string[] {
+  if (!raw?.trim()) return DEFAULT_BIZ_CORE_LOG_GROUPS;
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   projectRoot,
   db: {
@@ -29,6 +44,12 @@ export const config = {
     database: process.env.DB_NAME || "test",
   },
   mockDbTools: envBool("MOCK_DB_TOOLS", false),
+  mockCloudWatchTools: envBool("MOCK_CLOUDWATCH_TOOLS", false),
+  aws: {
+    region: process.env.AWS_REGION || "us-east-1",
+    defaultLogGroups: parseLogGroups(process.env.BIZ_CORE_LOG_GROUPS),
+    defaultHours: Number(process.env.BIZ_CORE_LOG_HOURS_DEFAULT || 3),
+  },
   log: {
     level: logLevel as LogLevel,
     dir: process.env.LOG_DIR || path.join(projectRoot, "logs"),

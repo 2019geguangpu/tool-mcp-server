@@ -7,6 +7,26 @@ export function mockDdl(tableName: string): string {
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`;
 }
 
+export function mockListTables(): string[] {
+  return ["users", "orders", "order_items", "products"];
+}
+
+import type { InsightsRow } from "./cloudwatch-insights.js";
+
+export function mockInsightsRows(queryString: string): InsightsRow[] {
+  return [
+    {
+      "@timestamp": "2026-05-22T07:36:29.490Z",
+      "@message": `【MOCK】匹配查询片段: ${queryString.slice(0, 80)}…`,
+    },
+    {
+      "@timestamp": "2026-05-22T07:38:24.621Z",
+      "@message":
+        '{"level":"error","event":"tool_call_start","toolName":"get_live_table_schema"}',
+    },
+  ];
+}
+
 export const MOCK_EXPLAIN_JSON = JSON.stringify(
   {
     query_block: {

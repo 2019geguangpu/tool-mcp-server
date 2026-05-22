@@ -30,7 +30,8 @@ async function handleGetLiveTableSchema({
         ],
       };
     }
-    const [rows] = await pool.execute<ShowCreateRow[]>(
+    // query 支持 ?? 标识符占位；execute 走预处理语句，?? 会原样下发导致语法错误
+    const [rows] = await pool.query<ShowCreateRow[]>(
       "SHOW CREATE TABLE ??",
       [table_name]
     );

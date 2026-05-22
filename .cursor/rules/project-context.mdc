@@ -6,7 +6,8 @@ alwaysApply: true
 
 MCP Server（TypeScript + tsup → `dist/` ESM）
  - `src/index.ts` 入口，`src/create-server.ts` 注册工具
- - `src/tools/` 每个工具独立文件，经 `wrap-handler.ts` 统一打日志与审计
+ - `src/tools/` 每个工具独立文件（含 `list_live_tables`、`query_biz_core_logs`），经 `wrap-handler.ts` 统一打日志与审计
+ - `query_biz_core_logs` → CloudWatch Logs Insights（`@aws-sdk/client-cloudwatch-logs`，凭证同本机 aws cli）
  - `src/logger.ts` → stderr + `logs/mcp-*.log`
  - `src/audit.ts` → `logs/tool-calls.jsonl` + `logs/calls/*.json`
  - `scripts/view-logs.ts` → 构建为 `dist/view-logs.js`
