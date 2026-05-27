@@ -14,6 +14,34 @@ export function mockListTables(): string[] {
   return ["users", "orders", "order_items", "products"];
 }
 
+export function mockReadonlyRows(): Record<string, unknown>[] {
+  return [
+    {
+      id: 1,
+      name: "mock-row-1",
+      view_count: 2,
+      last_view_at: "2026-05-25T09:25:00.000Z",
+    },
+    {
+      id: 2,
+      name: "mock-row-2",
+      view_count: 1,
+      last_view_at: "2026-05-25T09:20:00.000Z",
+    },
+  ];
+}
+
+export function mockUpdatedRows(): Record<string, unknown>[] {
+  return [
+    {
+      id: 1,
+      name: "mock-row-1",
+      status: "PENDING",
+      updated_at: "2026-05-25T09:25:00.000Z",
+    },
+  ];
+}
+
 export function mockFeishuSearchHits(query: string): FeishuSearchHit[] {
   return [
     {

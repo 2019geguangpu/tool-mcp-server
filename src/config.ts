@@ -51,6 +51,7 @@ export const config = {
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "test",
   },
+  testDbWritesEnabled: envBool("DB_TEST_WRITE_ENABLED", false),
   mockDbTools: envBool("MOCK_DB_TOOLS", false),
   mockCloudWatchTools: envBool("MOCK_CLOUDWATCH_TOOLS", false),
   aws: {

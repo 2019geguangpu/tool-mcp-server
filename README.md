@@ -1,6 +1,6 @@
 # db-safety-mcp
 
-面向 Cursor Agent 的 MySQL 安全 MCP Server：列举线上表、拉取表 DDL、对 SELECT 做 `EXPLAIN FORMAT=JSON` 评估。
+面向 Cursor Agent 的 MySQL 安全 MCP Server：列举线上表、拉取表 DDL、对 SELECT 做 `EXPLAIN FORMAT=JSON` 评估，并执行受限只读 SELECT 查看少量结果。
 
 ## 项目结构
 
@@ -24,6 +24,8 @@ server.js               # 兼容入口（import dist/index.js）
 | `list_live_tables` | 查询 `information_schema`，列出库内全部表名 |
 | `get_live_table_schema` | `SHOW CREATE TABLE`，获取真实 DDL |
 | `evaluate_sql_explain` | 仅允许 SELECT，输出 JSON 执行计划 |
+| `query_live_select` | 仅允许单条只读 SELECT，先 `EXPLAIN` 预估、再 `EXPLAIN ANALYZE` 实测，通过后返回最多 100 行查询结果 |
+| `update_test_db_rows` | 更新测试库少量行；仅支持结构化 `UPDATE`，默认 dry-run，真执行需显式确认 |
 | `query_biz_core_logs` | CloudWatch Logs Insights 查 biz-core 线上日志 |
 | `search_feishu_notes` | 按关键词搜索飞书笔记（对话里未贴链接时使用） |
 | `read_feishu_doc` | 读取飞书链接正文与表格/文档图片（MCP image 块 + `logs/feishu-media/`）；去尾部空列；`offset_chars` 分页 |
@@ -113,6 +115,24 @@ node dist/view-logs.js --id <callId前缀>      # 按 callId 查详情
 
 默认 `DB_PORT=3906`，对应本地 AWS CLI 数据库代理；直连 MySQL 时在 `.env` 中改为 `3306` 即可。
 
+### 测试库写入
+
+`update_test_db_rows` 用于在 Agent 窗口内修改测试库少量数据，方便本地测试。它只接受结构化参数，不接受任意 SQL：
+
+- `table_name`：表名
+- `set_values`：要更新的字段和值
+- `where_equals`：非空的等值条件
+- `dry_run`：默认 `true`，只预览匹配行和将要修改的值，不改数据库
+- `max_affected_rows`：默认 20，最大 100
+
+真执行需要同时满足：
+
+- `.env` 设置 `DB_TEST_WRITE_ENABLED=true`
+- `DB_HOST` 为 `127.0.0.1` / `localhost` / `::1`
+- `DB_PORT=3306`
+- 调用参数设置 `dry_run=false`
+- 调用参数设置 `confirm_execute=CONFIRM_TEST_DB_UPDATE`
+
 ### 飞书笔记
 
 1. 在 [飞书开放平台](https://open.feishu.cn/app) 创建**企业自建应用**，记录 App ID / App Secret。
@@ -131,3 +151,5 @@ Agent 工作流：
 
 - 库名、表名经白名单校验；`list_live_tables` 使用参数化查询 `information_schema`；`get_live_table_schema` 使用参数化 `SHOW CREATE TABLE ??`。
 - `evaluate_sql_explain` 仅接受 SELECT（含 WITH … SELECT），避免通过 EXPLAIN 执行写操作。
+- `query_live_select` 仅接受单条 SELECT（含 WITH … SELECT），拒绝常见有副作用或锁定语义的查询；先用 `EXPLAIN FORMAT=JSON` 拦截 `query_cost > 1000`、预估扫描行数 `> 100000`、最大全表扫描行数 `> 10000` 的查询，再用 `EXPLAIN ANALYZE` 拦截实测耗时 `> 1000ms` 的查询，最后才在只读事务中执行，并强制最多返回 100 行。
+- `update_test_db_rows` 仅支持结构化 `UPDATE`，要求非空 WHERE，默认 dry-run；真执行要求显式开启 `DB_TEST_WRITE_ENABLED=true`、本机 3306、确认字符串，并限制最大影响行数。
