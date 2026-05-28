@@ -12,4 +12,4 @@ MCP Server（TypeScript + tsup → `dist/` ESM）
  - `src/logger.ts` → stderr + `logs/mcp-*.log`
  - `src/audit.ts` → `logs/tool-calls.jsonl` + `logs/calls/*.json`
  - `scripts/view-logs.ts` → 构建为 `dist/view-logs.js`
- - Cursor `.cursor/mcp.json` 指向 `node dist/index.js`；改源码后需 `pnpm build`
+ - Cursor MCP：推荐 `pnpm run mcp:global-config -- ~/.cursor/mcp.json` 一次配置全局；env 与 dist 在本仓库。改源码后需 `pnpm build`

@@ -27,6 +27,7 @@ server.js               # 兼容入口（import dist/index.js）
 | `query_live_select` | 仅允许单条只读 SELECT，先 `EXPLAIN` 预估、再 `EXPLAIN ANALYZE` 实测，通过后返回最多 100 行查询结果 |
 | `update_test_db_rows` | 更新测试库少量行；仅支持结构化 `UPDATE`，默认 dry-run，真执行需显式确认 |
 | `query_biz_core_logs` | CloudWatch Logs Insights 查 biz-core 线上日志 |
+| `get_github_hot_repos` | 查看 GitHub 近期热门仓库（近似：近 N 小时创建并按 stars 排序） |
 | `search_feishu_notes` | 按关键词搜索飞书笔记（对话里未贴链接时使用） |
 | `read_feishu_doc` | 读取飞书链接正文与表格/文档图片（MCP image 块 + `logs/feishu-media/`）；去尾部空列；`offset_chars` 分页 |
 
@@ -36,6 +37,8 @@ server.js               # 兼容入口（import dist/index.js）
 cd /Users/rflb/code/tool-mcp-server
 pnpm install          # 安装依赖并触发 prepare → pnpm build
 cp .env.example .env
+cp .env.test.example .env.test    # 可选：测试库 MCP
+cp .env.live.example .env.live    # 可选：线上只读 MCP
 
 pnpm build            # 产出 dist/index.js、dist/view-logs.js
 pnpm dev              # tsup --watch，改 TS 自动重编
@@ -78,38 +81,78 @@ node dist/view-logs.js --id <callId前缀>      # 按 callId 查详情
 
 ## 接入 Cursor
 
-1. 本仓库已包含 [`.cursor/mcp.json`](.cursor/mcp.json)，**必须用本项目根目录**打开（`File → Open Folder` → `tool-mcp-server`），不要只打开子文件夹。
-2. 执行 `pnpm install`（会 build 出 `dist/`）并配置好 `.env`。
-3. **完全退出并重新打开 Cursor**（或命令面板 `Developer: Reload Window`）。
-4. 打开 **Cursor Settings → Tools & MCP**，确认 `db-safety-mcp` 为绿色；展开服务器，确认各工具开关为 **开启**。
-5. 用 **Composer / Agent 模式**（`Cmd+I`），模式选 **Agent**。
-6. **新开一条 Agent 对话**，调用任一数据库工具后，在本机执行 `pnpm run logs` 应能看到记录。
+### 推荐：全局配置一次（其它业务项目不用再拷 mcp.json）
+
+MCP 的代码与 `.env.*` 都在 **本仓库**；业务项目里只需正常写代码，不必每个仓库维护一份 `.cursor/mcp.json`。
+
+在本仓库执行（会写入 `~/.cursor/mcp.json`，路径按当前仓库位置自动生成）：
+
+```bash
+cd /path/to/tool-mcp-server
+pnpm install
+pnpm run mcp:global-config -- ~/.cursor/mcp.json
+```
+
+改 MCP 结构或 env 路径后，**只在本仓库再跑一遍上述命令**，然后 Reload Window。无需改各个业务项目。
+
+也可手动参考 [mcp.global.json.example](mcp.global.json.example) 编辑 `~/.cursor/mcp.json`，或在 **Cursor Settings → Tools & MCP → Add new MCP server** 里配置（效果相同）。
+
+**业务项目注意**：若某仓库里还有旧的 `.cursor/mcp.json` 且定义了同名 server，会与全局配置冲突或覆盖。可删除业务项目里的 MCP 配置，只保留全局一份。
+
+本仓库内的 [`.cursor/mcp.json`](.cursor/mcp.json) 仍保留（相对路径），方便直接 `Open Folder` 打开 tool-mcp-server 时开发自测；日常使用以全局配置为准即可。
+
+### 首次启用 checklist
+
+1. 在本仓库配置 `.env` / `.env.test` / `.env.live`（见下方「多环境 MCP」）。
+2. `pnpm run mcp:global-config -- ~/.cursor/mcp.json`（或合并进已有全局 mcp.json）。
+3. **Reload Window**。
+4. **Settings → Tools & MCP** 确认三个 server 为绿色。
+5. 在**任意**已打开的项目里新开 Agent 对话验证工具可用。
+
+### 多环境 MCP（连接 + 安全策略分开）
+
+全局或项目级 `mcp.json` 注册三个**独立进程**，共用本仓库的 `dist/index.js`，每个进程固定：
+
+- `DOTENV_CONFIG_PATH` → 连哪套库（`DB_*`）
+- `MCP_PROFILE` → 暴露哪些工具、执行前要不要 EXPLAIN 门禁
+
+| Cursor 名称 | env 文件 | MCP_PROFILE | 行为 |
+|-------------|----------|-------------|------|
+| `db-safety-test` | `.env.test` | `test` | 测试库：可 `update_test_db_rows`；SELECT 无 EXPLAIN 门禁 |
+| `db-safety-live` | `.env.live` | `live` | 线上只读：无写入；SELECT 须 EXPLAIN + EXPLAIN ANALYZE |
+| `tool-integrations` | `.env`（或 `.env.integrations`） | `integrations` | 仅飞书笔记 + `query_biz_core_logs`，**无** 任何 DB 工具 |
+
+**建议**：
+
+- 改库 / 查库：只开一个 `db-safety-*`
+- 查笔记 / 线上日志：开 `tool-integrations`（可与 `db-safety-live` 同时开，工具名不重复）
+- 已移除旧的 `db-safety-mcp`（`MCP_PROFILE=full`）；`full` 在代码里会映射为 `integrations`
+
+`MCP_PROFILE` 由 `mcp.json` 的 `env` 注入，无需写进 `.env` 文件（写在 env 里也会被进程环境覆盖，以 mcp.json 为准）。
+
+首次使用：
+
+```bash
+cp .env.test.example .env.test   # 编辑 DB_*、按需拷贝 FEISHU_*
+cp .env.live.example .env.live   # 编辑 DB_NAME、代理端口等
+```
+
+修改 `mcp.json` 或任一 `.env.*` 后需 **Reload Window**；仅切换 Settings 里开/关某个 MCP 时，一般关掉再打开该 server 或新开 Agent 对话即可。
 
 ### Agent 里看不到 MCP 工具（设置页却是绿的）
 
-1. **Settings → Tools & MCP**：把 `db-safety-mcp` **关掉再打开**。
+1. **Settings → Tools & MCP**：把对应 MCP **关掉再打开**。
 2. **新开 Agent 对话**。
 3. 命令面板 → **Output** → 选 **MCP Logs**，看是否有进程崩溃等报错。
 4. 调用工具后检查 `logs/tool-calls.jsonl` 是否有新行（可确认工具是否真的被执行）。
 
-若项目级配置不生效，可在用户目录增加全局配置 `~/.cursor/mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "db-safety-mcp": {
-      "command": "node",
-      "args": ["/Users/rflb/code/tool-mcp-server/dist/index.js"]
-    }
-  }
-}
-```
-
-将 `args` 中的路径改为你本机仓库的绝对路径。
+全局配置里 `args` 与 `DOTENV_CONFIG_PATH` 必须为**绝对路径**（由 `pnpm run mcp:global-config` 自动生成）。项目内 `.cursor/mcp.json` 可使用相对路径（相对 tool-mcp-server 仓库根解析）。
 
 ## 环境变量
 
-见 [`.env.example`](.env.example)：`DB_*`、`LOG_*`、`AUDIT_*`、`MOCK_DB_TOOLS`、`AWS_REGION`、`BIZ_CORE_LOG_*`、`MOCK_CLOUDWATCH_TOOLS`、`FEISHU_*`、`MOCK_FEISHU_TOOLS`。
+见 [`.env.example`](.env.example)、[`.env.test.example`](.env.test.example)、[`.env.live.example`](.env.live.example)、[`.env.integrations.example`](.env.integrations.example)：`DB_*`、`LOG_*`、`AUDIT_*`、`MOCK_DB_TOOLS`、`AWS_REGION`、`BIZ_CORE_LOG_*`、`MOCK_CLOUDWATCH_TOOLS`、`FEISHU_*`、`MOCK_FEISHU_TOOLS`。
+
+进程通过 `DOTENV_CONFIG_PATH` 选择 env 文件，通过 `MCP_PROFILE`（`test` | `live` | `integrations`）选择工具集；二者均由 `.cursor/mcp.json` 注入。未设置 `DOTENV_CONFIG_PATH` 时默认 `<项目根>/.env`；未设置 `MCP_PROFILE` 时默认 `integrations`。
 
 `query_biz_core_logs` 使用与本机 `aws logs` 相同的凭证链（`aws sso login` / `AWS_PROFILE` 等），无需在 `.env` 里写 Access Key。默认查询截图中的 4 个 ECS 日志组、最近 3 小时；Agent 传入完整 Insights 查询语句。
 

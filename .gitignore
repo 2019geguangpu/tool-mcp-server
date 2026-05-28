@@ -1,6 +1,13 @@
 node_modules/
 dist/
 .env
+.env.test
+.env.live
+.env.integrations
+.env.staging
+.env.*
+!.env.example
+!.env.*.example
 *.log
 logs/
 .DS_Store

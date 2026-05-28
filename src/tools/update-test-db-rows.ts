@@ -98,7 +98,16 @@ function isLocalhost(host: string): boolean {
   return host === "127.0.0.1" || host === "localhost" || host === "::1";
 }
 
+function assertTestProfile(): void {
+  if (config.mcpProfile !== "test") {
+    throw new Error(
+      `update_test_db_rows 仅在 MCP_PROFILE=test 的进程中可用（当前为 ${config.mcpProfile}）。请启用 Cursor 中的 db-safety-test。`
+    );
+  }
+}
+
 function assertExecutionAllowed(confirmExecute: string | undefined): void {
+  assertTestProfile();
   if (!config.testDbWritesEnabled) {
     throw new Error(
       "真执行 UPDATE 需要先在 .env 中设置 DB_TEST_WRITE_ENABLED=true。"
@@ -164,6 +173,7 @@ async function handleUpdateTestDbRows({
   confirm_execute,
 }: Args): Promise<ToolCallResult> {
   try {
+    assertTestProfile();
     assertSafeTableName(table_name);
     const setEntries = objectEntries(set_values, "SET");
     const whereEntries = objectEntries(where_equals, "WHERE");
@@ -301,7 +311,7 @@ export const updateTestDbRowsTool: RegisteredTool<Args> = {
   name: "update_test_db_rows",
   definition: {
     description:
-      "更新测试数据库中的少量行。仅支持结构化 UPDATE：必须提供表名、SET 字段和值、WHERE 等值条件；默认 dry-run 只预览不修改。真执行要求 DB_TEST_WRITE_ENABLED=true、本机 3306、dry_run=false 且 confirm_execute=CONFIRM_TEST_DB_UPDATE。",
+      "更新测试数据库中的少量行（仅 MCP_PROFILE=test 进程注册）。结构化 UPDATE：表名、SET、WHERE 等值条件；默认 dry-run。真执行需 DB_TEST_WRITE_ENABLED=true、本机 3306、dry_run=false、confirm_execute=CONFIRM_TEST_DB_UPDATE。",
     inputSchema: {
       table_name: z.string().describe("表名（仅字母数字下划线）"),
       set_values: z

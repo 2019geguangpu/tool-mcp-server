@@ -133,8 +133,9 @@ function formatRows(
   explainSummary: ExplainSummary | null,
   analyzeSummary: AnalyzeSummary | null
 ): string {
+  const envLabel = config.mcpProfile === "test" ? "测试库" : "线上";
   const lines = [
-    `【线上 SELECT 查询结果】返回 ${rows.length} 行（最多 ${limitRows} 行）`,
+    `【${envLabel} SELECT 查询结果】返回 ${rows.length} 行（最多 ${limitRows} 行）`,
   ];
 
   if (explainSummary && analyzeSummary) {
@@ -224,8 +225,16 @@ async function handleQueryLiveSelect({
       ]);
       await connection.query("START TRANSACTION READ ONLY");
 
-      const safety = await handleSafetyChecks(connection, sql);
-      if (!safety.ok) return safety.result;
+      const useExplainGate = config.mcpProfile === "live";
+      let explainSummary: ExplainSummary | null = null;
+      let analyzeSummary: AnalyzeSummary | null = null;
+
+      if (useExplainGate) {
+        const safety = await handleSafetyChecks(connection, sql);
+        if (!safety.ok) return safety.result;
+        explainSummary = safety.explainSummary;
+        analyzeSummary = safety.analyzeSummary;
+      }
 
       const [rows] = await connection
         .query<RowDataPacket[]>(
@@ -233,9 +242,10 @@ async function handleQueryLiveSelect({
         )
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : String(error);
-          throw new Error(
-            `SELECT 执行失败（EXPLAIN 和 EXPLAIN ANALYZE 已通过）：${message}`
-          );
+          const gateHint = useExplainGate
+            ? "（EXPLAIN 和 EXPLAIN ANALYZE 已通过）"
+            : "";
+          throw new Error(`SELECT 执行失败${gateHint}：${message}`);
         });
       await rollback(connection);
 
@@ -246,8 +256,8 @@ async function handleQueryLiveSelect({
             text: formatRows(
               normalizeRows(rows),
               limitRows,
-              safety.explainSummary,
-              safety.analyzeSummary
+              explainSummary,
+              analyzeSummary
             ),
           },
         ],
@@ -271,7 +281,7 @@ export const queryLiveSelectTool: RegisteredTool<Args> = {
   name: "query_live_select",
   definition: {
     description:
-      "执行只读 SELECT 并返回查询结果。仅允许单条 SELECT/WITH 查询；会先通过 EXPLAIN FORMAT=JSON 预估，再通过 EXPLAIN ANALYZE 实测，全部低于阈值后才在只读事务中执行并限制返回行数。",
+      "执行只读 SELECT 并返回查询结果。仅允许单条 SELECT/WITH 查询。MCP_PROFILE=live 时必须先通过 EXPLAIN FORMAT=JSON 与 EXPLAIN ANALYZE 门禁；MCP_PROFILE=test 时在只读事务中直接执行（无 EXPLAIN 门禁，仅行数上限）。",
     inputSchema: {
       sql_query: z.string().describe("需要执行的完整 SELECT SQL"),
       limit_rows: z

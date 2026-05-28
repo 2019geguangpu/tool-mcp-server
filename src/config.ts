@@ -1,15 +1,20 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { parseMcpProfile, type McpProfile } from "./lib/mcp-profile.js";
 import type { LogLevel } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** 编译后在 dist/，上一级即项目根目录 */
 const projectRoot = path.resolve(__dirname, "..");
 
-dotenv.config({
-  path: process.env.DOTENV_CONFIG_PATH || path.join(projectRoot, ".env"),
-});
+function resolveEnvFilePath(): string {
+  const raw = process.env.DOTENV_CONFIG_PATH?.trim();
+  if (!raw) return path.join(projectRoot, ".env");
+  return path.isAbsolute(raw) ? raw : path.join(projectRoot, raw);
+}
+
+dotenv.config({ path: resolveEnvFilePath() });
 
 function envBool(name: string, defaultValue: boolean): boolean {
   const raw = process.env[name];
@@ -44,6 +49,7 @@ function parseCsv(raw: string | undefined): string[] {
 
 export const config = {
   projectRoot,
+  mcpProfile: parseMcpProfile(process.env.MCP_PROFILE) as McpProfile,
   db: {
     host: process.env.DB_HOST || "127.0.0.1",
     port: Number(process.env.DB_PORT || 3906),
