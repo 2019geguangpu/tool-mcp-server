@@ -10,6 +10,7 @@ import { queryLiveSelectTool } from "./query-live-select";
 import { readFeishuDocTool } from "./read-feishu-doc.js";
 import { searchFeishuNotesTool } from "./search-feishu-notes.js";
 import type { RegisteredTool } from "./types.js";
+import { alterTestTableTool } from "./alter-test-table.js";
 import { updateTestDbRowsTool } from "./update-test-db-rows.js";
 
 const ALL_TOOLS = [
@@ -18,6 +19,7 @@ const ALL_TOOLS = [
   evaluateSqlExplainTool,
   queryLiveSelectTool,
   updateTestDbRowsTool,
+  alterTestTableTool,
   queryBizCoreLogsTool,
   getGithubHotReposTool,
   searchFeishuNotesTool,

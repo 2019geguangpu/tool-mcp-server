@@ -23,6 +23,7 @@ export const TOOLS_BY_PROFILE: Record<McpProfile, readonly string[]> = {
     "evaluate_sql_explain",
     "query_live_select",
     "update_test_db_rows",
+    "alter_test_table",
   ],
   live: [
     "list_live_tables",

@@ -10,6 +10,11 @@ import {
   normalizeRows,
   type DbValue,
 } from "../lib/test-db-update.js";
+import {
+  assertTestDbWriteExecution,
+  assertTestProfile,
+  CONFIRM_TEST_DB_UPDATE,
+} from "../lib/test-db-write-guard.js";
 import { assertSafeIdentifier, assertSafeTableName } from "../lib/validators.js";
 import type { ToolCallResult } from "../types.js";
 import type { RegisteredTool } from "./types.js";
@@ -34,8 +39,6 @@ const DbValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 const DEFAULT_MAX_AFFECTED_ROWS = 20;
 const MAX_AFFECTED_ROWS = 100;
 const PREVIEW_ROWS = 20;
-const EXECUTE_CONFIRMATION = "CONFIRM_TEST_DB_UPDATE";
-
 function quoteIdentifier(identifier: string): string {
   return `\`${identifier}\``;
 }
@@ -94,37 +97,6 @@ function buildSetClause(entries: [string, DbValue][]): {
   };
 }
 
-function isLocalhost(host: string): boolean {
-  return host === "127.0.0.1" || host === "localhost" || host === "::1";
-}
-
-function assertTestProfile(): void {
-  if (config.mcpProfile !== "test") {
-    throw new Error(
-      `update_test_db_rows 仅在 MCP_PROFILE=test 的进程中可用（当前为 ${config.mcpProfile}）。请启用 Cursor 中的 db-safety-test。`
-    );
-  }
-}
-
-function assertExecutionAllowed(confirmExecute: string | undefined): void {
-  assertTestProfile();
-  if (!config.testDbWritesEnabled) {
-    throw new Error(
-      "真执行 UPDATE 需要先在 .env 中设置 DB_TEST_WRITE_ENABLED=true。"
-    );
-  }
-  if (!isLocalhost(config.db.host) || config.db.port !== 3306) {
-    throw new Error(
-      `测试库写入工具仅允许连接本机 3306，当前为 ${config.db.host}:${config.db.port}。`
-    );
-  }
-  if (confirmExecute !== EXECUTE_CONFIRMATION) {
-    throw new Error(
-      `真执行 UPDATE 时 confirm_execute 必须填写 ${EXECUTE_CONFIRMATION}。`
-    );
-  }
-}
-
 function safetyError(message: string): ToolCallResult {
   return {
     content: [{ type: "text", text: `【测试库 UPDATE 安全检查未通过】\n${message}` }],
@@ -173,7 +145,7 @@ async function handleUpdateTestDbRows({
   confirm_execute,
 }: Args): Promise<ToolCallResult> {
   try {
-    assertTestProfile();
+    assertTestProfile("update_test_db_rows");
     assertSafeTableName(table_name);
     const setEntries = objectEntries(set_values, "SET");
     const whereEntries = objectEntries(where_equals, "WHERE");
@@ -194,7 +166,7 @@ async function handleUpdateTestDbRows({
                   matchedRows: previewRows.length,
                   maxAffectedRows,
                   previewRows,
-                  confirmation: EXECUTE_CONFIRMATION,
+                  confirmation: CONFIRM_TEST_DB_UPDATE,
                 })}`
               : `【MOCK】\n${formatExecuteResult({
                   tableName: table_name,
@@ -209,7 +181,7 @@ async function handleUpdateTestDbRows({
     }
 
     if (!shouldDryRun) {
-      assertExecutionAllowed(confirm_execute);
+      assertTestDbWriteExecution(confirm_execute, CONFIRM_TEST_DB_UPDATE);
     }
 
     const where = buildWhereClause(whereEntries);
@@ -247,7 +219,7 @@ async function handleUpdateTestDbRows({
                 matchedRows,
                 maxAffectedRows,
                 previewRows,
-                confirmation: EXECUTE_CONFIRMATION,
+                confirmation: CONFIRM_TEST_DB_UPDATE,
               }),
             },
           ],
@@ -311,7 +283,7 @@ export const updateTestDbRowsTool: RegisteredTool<Args> = {
   name: "update_test_db_rows",
   definition: {
     description:
-      "更新测试数据库中的少量行（仅 MCP_PROFILE=test 进程注册）。结构化 UPDATE：表名、SET、WHERE 等值条件；默认 dry-run。真执行需 DB_TEST_WRITE_ENABLED=true、本机 3306、dry_run=false、confirm_execute=CONFIRM_TEST_DB_UPDATE。",
+      `更新测试数据库中的少量行（仅 MCP_PROFILE=test 进程注册）。结构化 UPDATE：表名、SET、WHERE 等值条件；默认 dry-run。真执行需 DB_TEST_WRITE_ENABLED=true、本机 3306、dry_run=false、confirm_execute=${CONFIRM_TEST_DB_UPDATE}。`,
     inputSchema: {
       table_name: z.string().describe("表名（仅字母数字下划线）"),
       set_values: z
@@ -337,7 +309,7 @@ export const updateTestDbRowsTool: RegisteredTool<Args> = {
         .string()
         .optional()
         .describe(
-          `真执行时必须填写 ${EXECUTE_CONFIRMATION}；dry-run 时不需要`
+          `真执行时必须填写 ${CONFIRM_TEST_DB_UPDATE}；dry-run 时不需要`
         ),
     },
   },
