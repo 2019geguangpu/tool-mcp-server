@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { parseMcpProfile, type McpProfile } from "./lib/mcp-profile.js";
+import { parseFeishuTopicMode, type FeishuTopicMode } from "./lib/feishu-topic-mode.js";
 import type { LogLevel } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -85,5 +86,25 @@ export const config = {
     maxImagesPerDoc: Number(process.env.FEISHU_MAX_IMAGES || 30),
     maxImageBytes: Number(process.env.FEISHU_MAX_IMAGE_BYTES || 5 * 1024 * 1024),
     mockFeishuTools: envBool("MOCK_FEISHU_TOOLS", false),
+    /** 监听的话题群 chat_id，与 .env 中 CHAT_ID 对应 */
+    watchChatId:
+      process.env.FEISHU_WATCH_CHAT_ID?.trim() ||
+      process.env.CHAT_ID?.trim() ||
+      "",
+    /**
+     * 话题消息范围：all=首帖+回复（默认），topic_root=仅首帖，topic_reply=仅回复
+     */
+    topicMode: parseFeishuTopicMode(process.env.FEISHU_TOPIC_MODE),
+  },
+  llm: {
+    apiKey: process.env.SILICONFLOW_API_KEY?.trim() || "",
+    baseUrl:
+      process.env.SILICONFLOW_BASE_URL?.trim() ||
+      "https://api.siliconflow.com/v1",
+    chatModel:
+      process.env.CHAT_MODEL?.trim() || "deepseek-ai/DeepSeek-V3",
+    timeoutMs: Number(process.env.LLM_TIMEOUT_MS || 60_000),
   },
 } as const;
+
+export type { FeishuTopicMode };

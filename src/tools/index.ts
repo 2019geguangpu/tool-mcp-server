@@ -7,6 +7,8 @@ import { getGithubHotReposTool } from "./get-github-hot-repos.js";
 import { listLiveTablesTool } from "./list-live-tables.js";
 import { queryBizCoreLogsTool } from "./query-biz-core-logs.js";
 import { queryLiveSelectTool } from "./query-live-select";
+import { analyzeCustomerMessageTool } from "./analyze-customer-message.js";
+import { interpretClaimVerificationTool } from "./interpret-claim-verification.js";
 import { readFeishuDocTool } from "./read-feishu-doc.js";
 import { searchFeishuNotesTool } from "./search-feishu-notes.js";
 import type { RegisteredTool } from "./types.js";
@@ -24,6 +26,8 @@ const ALL_TOOLS = [
   getGithubHotReposTool,
   searchFeishuNotesTool,
   readFeishuDocTool,
+  analyzeCustomerMessageTool,
+  interpretClaimVerificationTool,
 ] as RegisteredTool<Record<string, unknown>>[];
 
 export function registerTools(server: McpServer): void {

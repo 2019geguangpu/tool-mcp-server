@@ -13,6 +13,8 @@
     "prepare": "pnpm run build",
     "logs": "node dist/view-logs.js",
     "logs:last": "node dist/view-logs.js --last",
+    "classify-topic": "node dist/classify-topic.js",
+    "feishu:agent-worker": "node dist/feishu-agent-worker.js",
     "preinstall": "npx only-allow pnpm"
   },
   "engines": {
@@ -20,6 +22,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.1052.0",
+    "@larksuiteoapi/node-sdk": "^1.66.1",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "^16.4.7",
     "mysql2": "^3.14.0",

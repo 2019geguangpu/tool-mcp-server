@@ -36,6 +36,8 @@ export const TOOLS_BY_PROFILE: Record<McpProfile, readonly string[]> = {
     "get_github_hot_repos",
     "search_feishu_notes",
     "read_feishu_doc",
+    "analyze_customer_message",
+    "interpret_claim_verification",
   ],
 };
 
